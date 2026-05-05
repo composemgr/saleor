@@ -50,9 +50,9 @@ See `docker-compose.yaml` for complete list of configurable options.
 
 ## 📂 Volumes
 
-- `./rootfs/data/saleor` - Data storage
-- `./rootfs/config/saleor` - Data storage
-- `./rootfs/data/db/postgres/saleor` - Data storage
+- `./volumes/data/saleor` - Data storage
+- `./volumes/config/saleor` - Data storage
+- `./volumes/data/db/postgres/saleor` - Data storage
 
 ## 🔐 Security
 
