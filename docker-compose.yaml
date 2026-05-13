@@ -1,5 +1,6 @@
 # nginx proxy address - http://172.17.0.1:8083
 
+name: saleor
 x-logging: &default-logging
   driver: json-file
   options:
@@ -9,30 +10,43 @@ x-logging: &default-logging
 services:
   saleor:
     image: ghcr.io/saleor/saleor:latest
+    pull_policy: always
     container_name: saleor-app
-    restart: unless-stopped
+    hostname: ${BASE_HOST_NAME:-$HOSTNAME}
+    restart: always
     logging: *default-logging
     networks:
       - saleor
     ports:
-      - "8083:8000"
+      - "172.17.0.1:8083:8000"
     environment:
       TZ: ${TZ:-America/New_York}
+      SECRET_KEY: ${APP_SECRET_KEY:-changeme_secret_key_min_32_chars}
+      DATABASE_URL: postgresql://${DB_USER_NAME:-saleor}:${DB_USER_PASS:-changeme_db_password}@saleor-db:5432/${DB_CREATE_DATABASE_NAME:-saleor}
+      REDIS_URL: redis://saleor-redis:6379/0
+      ALLOWED_HOSTS: ${BASE_HOST_NAME:-localhost},${BASE_DOMAIN_NAME:-example.com}
+      DEFAULT_FROM_EMAIL: ${EMAIL_SERVER_MAIL_FROM:-noreply@example.com}
+      EMAIL_URL: smtp://${EMAIL_SERVER_HOST:-localhost}:${EMAIL_SERVER_PORT:-25}
+      DEFAULT_CURRENCY: USD
     volumes:
-      - ./volumes/data/saleor:/data
-      - ./volumes/config/saleor:/config
+      - ./volumes/data/saleor/media:/app/media
     depends_on:
-      - saleor-db
+      saleor-db:
+        condition: service_healthy
+      saleor-redis:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   saleor-db:
-    image: postgres:16-alpine
+    image: postgres:latest
+    pull_policy: always
     container_name: saleor-db
-    restart: unless-stopped
+    hostname: saleor-db
+    restart: always
     logging: *default-logging
     networks:
       - saleor
@@ -49,6 +63,24 @@ services:
       timeout: 10s
       retries: 3
 
+  saleor-redis:
+    image: redis:alpine
+    pull_policy: always
+    container_name: saleor-redis
+    hostname: saleor-redis
+    restart: always
+    logging: *default-logging
+    networks:
+      - saleor
+    volumes:
+      - ./volumes/data/db/redis/saleor:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
 networks:
   saleor:
+    name: saleor
     external: false
